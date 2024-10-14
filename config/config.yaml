@@ -1,0 +1,6 @@
+env: "development" # development, production
+storage_path: "storage/auth.db"
+token_ttl: 1h # время жизни токена
+grpc:
+  port: 44044
+  timeout: 10h
