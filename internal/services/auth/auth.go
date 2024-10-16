@@ -9,7 +9,7 @@ import (
 	"time"
 	"usekit-auth/internal/domain/models"
 	"usekit-auth/internal/lib/jwt"
-	"usekit-auth/internal/services/storage"
+	"usekit-auth/internal/storage"
 )
 
 var (
