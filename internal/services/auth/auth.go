@@ -31,12 +31,12 @@ type UserSaver interface {
 		ctx context.Context,
 		email string,
 		passHash []byte,
-	) (uuid string, err error)
+	) (id int64, err error)
 }
 
 type UserProvider interface {
 	User(ctx context.Context, email string) (models.User, error)
-	IsAdmin(ctx context.Context, userUuid string) (bool, error)
+	IsAdmin(ctx context.Context, userId int64) (bool, error)
 }
 
 type AppProvider interface {
@@ -86,6 +86,10 @@ func (a *Auth) Login(
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
+	//passStr := strconv.Itoa(user.PassHash)
+	slog.Info("user", slog.Any("passhash", user.PassHash))
+	slog.Info("user password", slog.String("password", password))
+	slog.Info("[]byte(password)", slog.Any("password", []byte(password)))
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		a.logger.Info("invalid credential", err)
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
@@ -107,13 +111,13 @@ func (a *Auth) Login(
 	return token, nil
 }
 
-// RegisterNewUser registers new user in the system and returns user uuid.
+// RegisterNewUser registers new user in the system and returns user id.
 // If user with given username exists, returns error.
 func (a *Auth) RegisterNewUser(
 	ctx context.Context,
 	email,
 	password string,
-) (userUuid string, err error) {
+) (userId int64, err error) {
 	const op = "services/auth.RegisterNewUser"
 
 	logger := a.logger.With(slog.String("operation", op))
@@ -122,29 +126,29 @@ func (a *Auth) RegisterNewUser(
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			logger.Warn("user already exists", err)
-			return "", fmt.Errorf("%s: %w", op, ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
 		logger.Error("failed to generate password hash", err)
-		return "", fmt.Errorf("%s: %w", err, op)
+		return 0, fmt.Errorf("%s: %w", err, op)
 	}
 
-	uuid, err := a.usrSaver.SaveUser(ctx, email, passHash)
+	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
 		logger.Error("failed to save new user", err)
-		return "", fmt.Errorf("%s: %w", err, op)
+		return 0, fmt.Errorf("%s: %w", err, op)
 	}
 
 	logger.Info("user registered successfully")
-	return uuid, nil
+	return id, nil
 }
 
-// IsAdmin returns true if user with given userUuid is admin.
-func (a *Auth) IsAdmin(ctx context.Context, userUuid string) (bool, error) {
+// IsAdmin returns true if user with given userId is admin.
+func (a *Auth) IsAdmin(ctx context.Context, userId int64) (bool, error) {
 	const op = "services/auth.IsAdmin"
 
 	logger := a.logger.With(slog.String("operation", op))
 
-	isAdmin, err := a.usrProvider.IsAdmin(ctx, userUuid)
+	isAdmin, err := a.usrProvider.IsAdmin(ctx, userId)
 	if err != nil {
 		if errors.Is(err, storage.ErrAppNotFound) {
 			logger.Warn("app not found", err)

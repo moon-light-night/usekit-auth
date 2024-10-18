@@ -28,9 +28,9 @@ func main() {
 
 	// TODO: инициализировать приложение (app)
 	application := app.New(logger, cfg.GRPC.Port, cfg.StoragePath, cfg.TokenTTL)
-	go application.GrpcServer.MustRun()
 
 	// TODO: запустить grpc-сервер приложения
+	go application.GrpcServer.MustRun()
 
 	// Graceful shutdown
 	stop := make(chan os.Signal, 1)

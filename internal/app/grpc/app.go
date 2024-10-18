@@ -1,5 +1,7 @@
 package grpcapp
 
+// grpc app
+
 import (
 	"fmt"
 	"google.golang.org/grpc"
@@ -14,12 +16,12 @@ type AppGrpc struct {
 	port       int
 }
 
-func New(logger *slog.Logger, port int) *AppGrpc {
+func New(logger *slog.Logger, authService authgrpc.Auth, port int) *AppGrpc {
 	// создается grpc сервер
 	grpcServer := grpc.NewServer()
 
 	// регистрируется grpc сервер
-	authgrpc.Register(grpcServer)
+	authgrpc.Register(grpcServer, authService)
 
 	return &AppGrpc{
 		logger:     logger,

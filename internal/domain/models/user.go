@@ -1,7 +1,7 @@
 package models
 
 type User struct {
-	Uuid     string `json:"uuid"`
+	Id       int64  `json:"id"`
 	Email    string `json:"email"`
 	PassHash []byte `json:"password"`
 }

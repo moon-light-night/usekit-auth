@@ -1,11 +1,16 @@
 package auth
 
+// handlers
+
 import (
 	"context"
+	"errors"
 	authv1 "github.com/moon-light-night/usekit-proto/gen/go/auth.v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"usekit-auth/internal/services/auth"
+	"usekit-auth/internal/storage"
 )
 
 const emptyIntValue = 0
@@ -21,8 +26,8 @@ type Auth interface {
 		ctx context.Context,
 		email string,
 		password string,
-	) (userUuid string, err error)
-	IsAdmin(ctx context.Context, userUuid string) (isAdmin bool, err error)
+	) (userId int64, err error)
+	IsAdmin(ctx context.Context, userId int64) (isAdmin bool, err error)
 }
 
 type serverApi struct {
@@ -41,9 +46,13 @@ func (server *serverApi) Login(ctx context.Context, req *authv1.LoginRequest) (*
 	}
 
 	// TODO: implement login via auth service(сервисный слой)
+	//getPass := req.GetPassword()
+	//slog.Info("getPass", slog.String("password", getPass))
 	token, err := server.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
-		// TODO:...
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.InvalidArgument, "invalid argument")
+		}
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -57,14 +66,16 @@ func (server *serverApi) Register(ctx context.Context, req *authv1.RegisterReque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	userUuid, err := server.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetEmail())
+	userId, err := server.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetEmail())
 	if err != nil {
-		// TODO: ...
+		if errors.Is(err, storage.ErrUserExists) {
+			return nil, status.Error(codes.AlreadyExists, "user already exists")
+		}
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
 	return &authv1.RegisterResponse{
-		UserUuid: userUuid,
+		UserId: userId,
 	}, nil
 }
 
@@ -73,8 +84,11 @@ func (server *serverApi) IsAdmin(ctx context.Context, req *authv1.IsAdminRequest
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	isAdmin, err := server.auth.IsAdmin(ctx, req.GetUserUuid())
+	isAdmin, err := server.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
@@ -101,8 +115,8 @@ func validateRegister(req *authv1.RegisterRequest) error {
 }
 
 func validateIsAdmin(req *authv1.IsAdminRequest) error {
-	if req.GetUserUuid() == "" {
-		return status.Error(codes.InvalidArgument, "user_uuid is required")
+	if req.GetUserId() == 0 {
+		return status.Error(codes.InvalidArgument, "user_id is required")
 	}
 	return nil
 }

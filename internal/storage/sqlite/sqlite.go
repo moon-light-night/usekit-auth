@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
-	uuidV4 "github.com/satori/go.uuid"
-	"log/slog"
 	"usekit-auth/internal/domain/models"
 	"usekit-auth/internal/storage"
 )
@@ -32,32 +30,36 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (string, error) {
+func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	const op = "storage.sqlite.SaveUser"
-	uuid := uuidV4.NewV4().String()
-	stmt, err := s.db.Prepare(`INSERT INTO users (uuid, email, pass_hash) VALUES (?, ?, ?)`)
+	//uuid := uuidV4.New().String()
+	//slog.Info("uuid", slog.String("uuid", uuid))
+
+	stmt, err := s.db.Prepare(`INSERT INTO users(email, pass_hash) VALUES(?, ?)`)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := stmt.ExecContext(ctx, uuid, email, passHash)
+	res, err := stmt.ExecContext(ctx, email, passHash)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
-			return "", fmt.Errorf("%s: %w", op, storage.ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
 		}
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
-	slog.Info("SaveUser res", res)
 
-	// TODO: посмотреть, что возвращается в res и возвращать созданный uuid
-	return uuid, nil
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return id, nil
 }
 
 // User returns user by email
 func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.sqlite.User"
-	stmt, err := s.db.Prepare(`SELECT uuid, email, pass_hash FROM users WHERE email = ?`)
+	stmt, err := s.db.Prepare(`SELECT id, email, pass_hash FROM users WHERE email = ?`)
 	if err != nil {
 		return models.User{}, fmt.Errorf("%s: %w", op, err)
 	}
@@ -65,7 +67,7 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	row := stmt.QueryRowContext(ctx, email)
 	var user models.User
 	// получаем результат методом Scan и записываем значения из колонок найденной строки в поля объекта user
-	err = row.Scan(&user.Uuid, &user.Email, &user.PassHash)
+	err = row.Scan(&user.Id, &user.Email, &user.PassHash)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -77,14 +79,15 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	return user, nil
 }
 
-func (s *Storage) IsAdmin(ctx context.Context, UserUuid string) (bool, error) {
+// IsAdmin returns true if user with given id is admin
+func (s *Storage) IsAdmin(ctx context.Context, UserId string) (bool, error) {
 	const op = "storage.sqlite.IsAdmin"
-	stmt, err := s.db.Prepare(`SELECT is_admin FROM users WHERE uuid = ?`)
+	stmt, err := s.db.Prepare(`SELECT is_admin FROM users WHERE id = ?`)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	row := stmt.QueryRowContext(ctx, UserUuid)
+	row := stmt.QueryRowContext(ctx, UserId)
 
 	var isAdmin bool
 	err = row.Scan(&isAdmin)
@@ -96,4 +99,23 @@ func (s *Storage) IsAdmin(ctx context.Context, UserUuid string) (bool, error) {
 	}
 
 	return isAdmin, nil
+}
+
+func (s *Storage) App(ctx context.Context, appId int) (models.App, error) {
+	const op = "storage.sqlite.App"
+	stmt, err := s.db.Prepare(`SELECT id, name, secret FROM apps WHERE id = ?`)
+	if err != nil {
+		return models.App{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, appId)
+	var App models.App
+	err = row.Scan(&App.Id, &App.Name, &App.Secret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.App{}, fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
+		}
+		return models.App{}, fmt.Errorf("%s: %w", op, err)
+	}
+	return App, nil
 }
