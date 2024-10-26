@@ -80,7 +80,7 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 }
 
 // IsAdmin returns true if user with given id is admin
-func (s *Storage) IsAdmin(ctx context.Context, UserId string) (bool, error) {
+func (s *Storage) IsAdmin(ctx context.Context, UserId int64) (bool, error) {
 	const op = "storage.sqlite.IsAdmin"
 	stmt, err := s.db.Prepare(`SELECT is_admin FROM users WHERE id = ?`)
 	if err != nil {
@@ -101,21 +101,21 @@ func (s *Storage) IsAdmin(ctx context.Context, UserId string) (bool, error) {
 	return isAdmin, nil
 }
 
-func (s *Storage) App(ctx context.Context, appId int) (models.App, error) {
+func (s *Storage) App(ctx context.Context, id int) (models.App, error) {
 	const op = "storage.sqlite.App"
 	stmt, err := s.db.Prepare(`SELECT id, name, secret FROM apps WHERE id = ?`)
 	if err != nil {
 		return models.App{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	row := stmt.QueryRowContext(ctx, appId)
-	var App models.App
-	err = row.Scan(&App.Id, &App.Name, &App.Secret)
+	row := stmt.QueryRowContext(ctx, id)
+	var app models.App
+	err = row.Scan(&app.Id, &app.Name, &app.Secret)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.App{}, fmt.Errorf("%s: %w", op, storage.ErrAppNotFound)
 		}
 		return models.App{}, fmt.Errorf("%s: %w", op, err)
 	}
-	return App, nil
+	return app, nil
 }

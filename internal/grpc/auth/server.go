@@ -46,8 +46,6 @@ func (server *serverApi) Login(ctx context.Context, req *authv1.LoginRequest) (*
 	}
 
 	// TODO: implement login via auth service(сервисный слой)
-	//getPass := req.GetPassword()
-	//slog.Info("getPass", slog.String("password", getPass))
 	token, err := server.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
@@ -56,9 +54,7 @@ func (server *serverApi) Login(ctx context.Context, req *authv1.LoginRequest) (*
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	return &authv1.LoginResponse{
-		Token: token,
-	}, nil
+	return &authv1.LoginResponse{Token: token}, nil
 }
 
 func (server *serverApi) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
@@ -66,7 +62,7 @@ func (server *serverApi) Register(ctx context.Context, req *authv1.RegisterReque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	userId, err := server.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetEmail())
+	userId, err := server.auth.RegisterNewUser(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
@@ -74,9 +70,7 @@ func (server *serverApi) Register(ctx context.Context, req *authv1.RegisterReque
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	return &authv1.RegisterResponse{
-		UserId: userId,
-	}, nil
+	return &authv1.RegisterResponse{UserId: userId}, nil
 }
 
 func (server *serverApi) IsAdmin(ctx context.Context, req *authv1.IsAdminRequest) (*authv1.IsAdminResponse, error) {

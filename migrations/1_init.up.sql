@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS users
 (
-    uuid VARCHAR PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     passHash BLOB NOT NULL
 );

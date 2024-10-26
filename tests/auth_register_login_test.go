@@ -29,7 +29,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, respReg.GetUserUuid())
+	assert.NotEmpty(t, respReg.GetUserId())
 
 	respLogin, err := st.AuthClient.Login(ctx, &authv1.LoginRequest{
 		Email:    email,
@@ -51,7 +51,7 @@ func TestRegisterLogin_Login_HappyPath(t *testing.T) {
 	claims, ok := tokenParsed.Claims.(jwt.MapClaims)
 	assert.True(t, ok)
 
-	assert.Equal(t, respReg.GetUserUuid(), claims["uuid"].(string))
+	assert.Equal(t, respReg.GetUserId(), claims["id"].(int64))
 	assert.Equal(t, email, claims["email"].(string))
 	assert.Equal(t, appId, int(claims["app_id"].(float64)))
 

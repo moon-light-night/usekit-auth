@@ -86,10 +86,6 @@ func (a *Auth) Login(
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	//passStr := strconv.Itoa(user.PassHash)
-	slog.Info("user", slog.Any("passhash", user.PassHash))
-	slog.Info("user password", slog.String("password", password))
-	slog.Info("[]byte(password)", slog.Any("password", []byte(password)))
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		a.logger.Info("invalid credential", err)
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
@@ -117,7 +113,7 @@ func (a *Auth) RegisterNewUser(
 	ctx context.Context,
 	email,
 	password string,
-) (userId int64, err error) {
+) (int64, error) {
 	const op = "services/auth.RegisterNewUser"
 
 	logger := a.logger.With(slog.String("operation", op))
