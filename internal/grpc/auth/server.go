@@ -48,8 +48,8 @@ func (server *serverApi) Login(ctx context.Context, req *authv1.LoginRequest) (*
 	// TODO: implement login via auth service(сервисный слой)
 	token, err := server.auth.Login(ctx, req.GetEmail(), req.GetPassword(), int(req.GetAppId()))
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidCredentials) {
-			return nil, status.Error(codes.InvalidArgument, "invalid argument")
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
 		}
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
@@ -80,7 +80,7 @@ func (server *serverApi) IsAdmin(ctx context.Context, req *authv1.IsAdminRequest
 
 	isAdmin, err := server.auth.IsAdmin(ctx, req.GetUserId())
 	if err != nil {
-		if errors.Is(err, storage.ErrUserNotFound) {
+		if errors.Is(err, auth.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
 		return nil, status.Error(codes.Internal, "internal server error")
